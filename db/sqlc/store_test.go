@@ -14,13 +14,11 @@ func TestTransferTx(t *testing.T) {
 
 	store := MustNewStore(ctxTx, configConnect)
 
-	faker := gofakeit.New(0)
-
-	accountFrom, err, _ := createRandomAccount(faker)
+	accountFrom, err, _ := createRandomAccount()
 	require.NoError(t, err)
 	require.NotEmpty(t, accountFrom)
 
-	accountTo, err, _ := createRandomAccount(faker)
+	accountTo, err, _ := createRandomAccount()
 
 	require.NoError(t, err)
 	require.NotEmpty(t, accountTo)
@@ -129,7 +127,7 @@ func TestTransferTx(t *testing.T) {
 
 	updateAccount2, err := testQueries.GetAccount(context.Background(), accountTo.ID)
 	require.NoError(t, err)
-	
+
 	require.Equal(t, accountFrom.Balance-int64(n)*amount, updateAccount1.Balance)
 	require.Equal(t, accountTo.Balance+int64(n)*amount, updateAccount2.Balance)
 }

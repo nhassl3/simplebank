@@ -6,6 +6,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/brianvoe/gofakeit/v7"
 	"github.com/jackc/pgx/v5"
 )
 
@@ -13,6 +14,7 @@ var (
 	testQueries   *Queries
 	ctx           = context.Background()
 	configConnect = os.Getenv("TEST_CONNECTION")
+	faker         = gofakeit.New(0)
 )
 
 func TestMain(m *testing.M) {

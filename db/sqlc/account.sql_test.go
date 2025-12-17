@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func createRandomAccount(faker *gofakeit.Faker) (account Account, err error, args CreateAccountParams) {
+func createRandomAccount() (account Account, err error, args CreateAccountParams) {
 	args = CreateAccountParams{
 		faker.Name(),
 		int64(faker.IntN(1000)),
@@ -22,10 +22,8 @@ func createRandomAccount(faker *gofakeit.Faker) (account Account, err error, arg
 }
 
 func TestCreateAccounts(t *testing.T) {
-	faker := gofakeit.New(0)
-
 	for i := 0; i < 100; i++ {
-		account, err, args := createRandomAccount(faker)
+		account, err, args := createRandomAccount()
 		require.NoError(t, err)
 		require.NotEmpty(t, account)
 
@@ -39,8 +37,7 @@ func TestCreateAccounts(t *testing.T) {
 }
 
 func TestDeleteAccount(t *testing.T) {
-	faker := gofakeit.New(0)
-	account, err, _ := createRandomAccount(faker)
+	account, err, _ := createRandomAccount()
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
 
@@ -60,9 +57,7 @@ func TestGetRandomAccount(t *testing.T) {
 }
 
 func TestGetAccount(t *testing.T) {
-	faker := gofakeit.New(0)
-
-	account, err, args := createRandomAccount(faker)
+	account, err, args := createRandomAccount()
 
 	require.NoError(t, err)
 	require.NotEmpty(t, account)

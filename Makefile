@@ -7,6 +7,7 @@ ifneq (,$(wildcard ./.env))
 endif
 
 DATABASE_PASSWORD ?= $$DATABASE_PASSWORD
+TEST_CONNECTION ?=  $$TEST_CONNECTION
 
 createdb:
 	docker exec -it postgres18 createdb --username=root --owner=root simple_bank
@@ -54,6 +55,6 @@ clean:
 	rm -rf ./$(BUILD_DIR)/
 
 test:
-	@go test -v -cover ./...
+	@TEST_CONNECTION=$(TEST_CONNECTION) go test -v -cover ./...
 
 .PHONY: createdb dropdb opendb postgres migrate-up migrate-down sqlc dynamic-build run clean test
