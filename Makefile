@@ -1,6 +1,13 @@
 BINARY_NAME=simplebank
 BUILD_DIR=build
 
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
+
+DATABASE_PASSWORD ?= $$DATABASE_PASSWORD
+
 createdb:
 	docker exec -it postgres18 createdb --username=root --owner=root simple_bank
 
@@ -11,13 +18,13 @@ opendb:
 	docker exec -it postgres18 psql -U root simple_bank
 
 postgres:
-	docker run --name postgres18 -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=secret -d postgres:18-alpine
+	docker run --name postgres18 -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=$(DATABASE_PASSWORD) -d postgres:18-alpine
 
 migrate-up:
-	migrate -path db/migration -database "postgres://root:secret@localhost:5432/simple_bank?sslmode=disable" -verbose up
+	migrate -path db/migration -database "postgres://root:$(DATABASE_PASSWORD)@localhost:5432/simple_bank?sslmode=disable" -verbose up
 
 migrate-down:
-	migrate -path db/migration -database "postgres://root:secret@localhost:5432/simple_bank?sslmode=disable" -verbose down
+	migrate -path db/migration -database "postgres://root:$(DATABASE_PASSWORD)@localhost:5432/simple_bank?sslmode=disable" -verbose down
 
 sqlc:
 	sqlc generate
