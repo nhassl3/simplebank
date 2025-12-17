@@ -45,6 +45,7 @@ jobs:
         run: |
             touch .env
             echo DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }} >> .env
+            echo TEST_CONNECTION=${{ secrets.TEST_CONNECTION }} >> .env
             cat .env
 
       - name: Install migrate package CLI v4.19.1
