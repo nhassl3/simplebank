@@ -29,6 +29,8 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+        ports:
+          - 5432:5432
 
     steps:
       - name: Check out code into the Go module directory
@@ -44,6 +46,12 @@ jobs:
             touch .env
             echo DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }} >> .env
             cat .env
+
+      - name: Install migrate package CLI v4.19.1
+        run: |
+            curl -L https://github.com/golang-migrate/migrate/releases/download/v4.19.1/migrate.linux-amd64.tar.gz | tar xvz
+            sudo mv migrate.linux-amd64 /usr/bin/migrate
+            which migrate
 
       - name: Make migrations
         run: |
