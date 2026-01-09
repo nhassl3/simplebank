@@ -12,8 +12,6 @@ import (
 func TestTransferTx(t *testing.T) {
 	ctxTx := context.Background()
 
-	store := MustNewStore(ctxTx, configConnect)
-
 	accountFrom, err, _ := createRandomAccount()
 	require.NoError(t, err)
 	require.NotEmpty(t, accountFrom)
@@ -122,10 +120,10 @@ func TestTransferTx(t *testing.T) {
 	}
 
 	// check the final updated balances
-	updateAccount1, err := testQueries.GetAccount(context.Background(), accountFrom.ID)
+	updateAccount1, err := store.GetAccount(context.Background(), accountFrom.ID)
 	require.NoError(t, err)
 
-	updateAccount2, err := testQueries.GetAccount(context.Background(), accountTo.ID)
+	updateAccount2, err := store.GetAccount(context.Background(), accountTo.ID)
 	require.NoError(t, err)
 
 	require.Equal(t, accountFrom.Balance-int64(n)*amount, updateAccount1.Balance)

@@ -1,0 +1,4 @@
+env: 2
+http:
+  host: "localhost"
+  port: 8080

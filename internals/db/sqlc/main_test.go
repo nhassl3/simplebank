@@ -7,24 +7,26 @@ import (
 	"testing"
 
 	"github.com/brianvoe/gofakeit/v7"
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 var (
-	testQueries   *Queries
 	ctx           = context.Background()
 	configConnect = os.Getenv("TEST_CONNECTION")
 	faker         = gofakeit.New(0)
+	pool          *pgxpool.Pool
+	store         Store
 )
 
 func TestMain(m *testing.M) {
-	conn, err := pgx.Connect(ctx, configConnect)
+	var err error
+	pool, err = pgxpool.New(ctx, configConnect)
 	if err != nil {
 		log.Fatal("cannot connect to database:", err)
 	}
-	defer conn.Close(ctx)
+	defer pool.Close()
 
-	testQueries = New(conn)
+	store = NewStore(pool)
 
 	os.Exit(m.Run())
 }

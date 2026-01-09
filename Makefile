@@ -22,23 +22,32 @@ postgres:
 	docker run --name postgres18 -p 5432:5432 -e POSTGRES_USER=root -e POSTGRES_PASSWORD=$(DATABASE_PASSWORD) -d postgres:18-alpine
 
 migrate-up:
-	migrate -path db/migration -database "postgres://root:$(DATABASE_PASSWORD)@localhost:5432/simple_bank?sslmode=disable" -verbose up
+	migrate -path internals/db/migration -database "postgres://root:$(DATABASE_PASSWORD)@localhost:5432/simple_bank?sslmode=disable" -verbose up
 
 migrate-down:
-	migrate -path db/migration -database "postgres://root:$(DATABASE_PASSWORD)@localhost:5432/simple_bank?sslmode=disable" -verbose down
+	migrate -path internals/db/migration -database "postgres://root:$(DATABASE_PASSWORD)@localhost:5432/simple_bank?sslmode=disable" -verbose down
+
+migrate-up-once:
+	migrate -path internals/db/migration -database "postgres://root:$(DATABASE_PASSWORD)@localhost:5432/simple_bank?sslmode=disable" -verbose up 1
+
+migrate-down-once:
+	migrate -path internals/db/migration -database "postgres://root:$(DATABASE_PASSWORD)@localhost:5432/simple_bank?sslmode=disable" -verbose down 1
 
 sqlc:
 	sqlc generate
 
+mock:
+	mockgen -package=mockdb -destination=./internals/db/mock/store.go github.com/nhassl3/simplebank/internals/db/sqlc Store
 
-GOOS ?= $(shell go env GOOS)
-GOARCH ?= $(shell go env GOARCH)
+
+export GOOS=$(go env GOOS)
+export GOARCH=$(go env GOARCH)
 CGO_ENABLED ?= 0
 LDFLAGS ?= -s -w
 BUILD_TAGS ?= ""
 
 # Dynamic build based on environment
-dynamic-build:
+build:
 	@echo "Building with: GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=$(CGO_ENABLED)"
 	@CGO_ENABLED=$(CGO_ENABLED) GOOS=$(GOOS) GOARCH=$(GOARCH) \
 	go build \
@@ -47,9 +56,9 @@ dynamic-build:
 		-o $(BUILD_DIR)/$(BINARY_NAME)-$(GOOS)-$(GOARCH) \
 		./cmd/$(BINARY_NAME)
 
-run: dynamic-build
+run: build
 	@echo "\n"
-	@./$(BUILD_DIR)/$(BINARY_NAME)-$(GOOS)-$(GOARCH)
+	@DATABASE_PASSWORD=$(DATABASE_PASSWORD) ./$(BUILD_DIR)/$(BINARY_NAME)-$(GOOS)-$(GOARCH) -config=./config/local.yml
 
 clean:
 	rm -rf ./$(BUILD_DIR)/
@@ -57,4 +66,4 @@ clean:
 test:
 	@TEST_CONNECTION=$(TEST_CONNECTION) go test -v -cover ./...
 
-.PHONY: createdb dropdb opendb postgres migrate-up migrate-down sqlc dynamic-build run clean test
+.PHONY: createdb dropdb opendb postgres migrate-up migrate-down sqlc build run clean test mock migrate-down-once migrate-up-once

@@ -10,32 +10,27 @@ import (
 )
 
 // Store provide all functions to execute db queries and transactions
-type Store struct {
-	*Queries
+type Store interface {
+	Querier
+	TransferTx(ctx context.Context, arg TransferTxOptions) (TransferTxResponse, error)
+}
+
+// SQLStore provide all functions to execute SQL queries and transactions
+type SQLStore struct {
 	pool *pgxpool.Pool
+	*Queries
 }
 
-// MustNewStore create a new Store
-// If pool of connections do not created - panic
-func MustNewStore(ctx context.Context, connectionString string) *Store {
-	pool, err := pgxpool.New(ctx, connectionString)
-	if err != nil {
-		panic(err)
-	}
-	return &Store{
+// NewStore create a new Store
+func NewStore(pool *pgxpool.Pool) Store {
+	return &SQLStore{
 		pool:    pool,
-		Queries: New(pool),
+		Queries: New(pool), // From /sqlc/db of db package
 	}
 }
 
-// Stop close a pool of connection to the database.
-// To prevent data leaks
-func (s *Store) Stop() {
-	s.pool.Close()
-}
-
-func (s *Store) execTx(ctx context.Context, fn func(*Queries) error) error {
-	// create new connection from pool
+func (s *SQLStore) execTx(ctx context.Context, fn func(*Queries) error) error {
+	// Create new connection from pool
 	conn, err := s.pool.Acquire(ctx)
 	if err != nil {
 		return fmt.Errorf("failed when acquire db connection: %w", err)
@@ -75,7 +70,7 @@ type TransferTxResponse struct {
 
 // TransferTx performs a money transfer from one account to the other
 // It creates a transfer record, add account entries, and update accounts' balances within a single database transaction
-func (s *Store) TransferTx(ctx context.Context, arg TransferTxOptions) (TransferTxResponse, error) {
+func (s *SQLStore) TransferTx(ctx context.Context, arg TransferTxOptions) (TransferTxResponse, error) {
 	var response TransferTxResponse
 
 	err := s.execTx(ctx, func(q *Queries) error {

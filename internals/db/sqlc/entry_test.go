@@ -34,7 +34,7 @@ func createRandomEntries(t *testing.T, n int) []EntryWithArgs {
 			Amount:    amount,
 		}
 
-		entry, err := testQueries.CreateEntry(ctx, args)
+		entry, err := store.CreateEntry(ctx, args)
 		entries = append(entries, EntryWithArgs{
 			Entry:     &entry,
 			srcAmount: amount,
@@ -69,7 +69,7 @@ func TestGetEntry(t *testing.T) {
 	require.Equal(t, entry.srcAmount, entry.Amount)
 	require.Equal(t, entry.srcID, entry.AccountID.Int64)
 
-	entryGet, err := testQueries.GetEntry(ctx, entry.ID)
+	entryGet, err := store.GetEntry(ctx, entry.ID)
 	require.NoError(t, err)
 	require.NotEmpty(t, entryGet)
 	require.Equal(t, entry.Amount, entryGet.Amount)

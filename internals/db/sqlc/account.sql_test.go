@@ -10,13 +10,18 @@ import (
 )
 
 func createRandomAccount() (account Account, err error, args CreateAccountParams) {
+	user, _, err := createRandomUser(generateRandomPassword())
+	if err != nil {
+		return
+	}
+
 	args = CreateAccountParams{
-		faker.Name(),
+		user.Username,
 		int64(faker.IntN(1000)),
 		faker.Currency().Short,
 	}
 
-	account, err = testQueries.CreateAccount(ctx, args)
+	account, err = store.CreateAccount(ctx, args)
 
 	return
 }
@@ -41,17 +46,17 @@ func TestDeleteAccount(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
 
-	err = testQueries.DeleteAccount(ctx, account.ID)
+	err = store.DeleteAccount(ctx, account.ID)
 	require.NoError(t, err)
 
-	accountRes, err := testQueries.GetAccount(ctx, account.ID)
+	accountRes, err := store.GetAccount(ctx, account.ID)
 	require.Error(t, err)
 	require.ErrorContains(t, sql.ErrNoRows, err.Error())
 	require.Empty(t, accountRes)
 }
 
 func TestGetRandomAccount(t *testing.T) {
-	account, err := testQueries.GetAccount(ctx, int64(gofakeit.IntRange(0, 99)))
+	account, err := store.GetAccount(ctx, int64(gofakeit.IntRange(0, 99)))
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
 }
@@ -67,7 +72,7 @@ func TestGetAccount(t *testing.T) {
 	require.NotZero(t, account.ID)
 	require.NotZero(t, account.CreatedAt)
 
-	testAccount, err := testQueries.GetAccount(ctx, account.ID)
+	testAccount, err := store.GetAccount(ctx, account.ID)
 
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
@@ -81,30 +86,55 @@ func TestGetAccount(t *testing.T) {
 	require.WithinDuration(t, account.CreatedAt.Time, testAccount.CreatedAt.Time, time.Second)
 }
 
-func TestLimitAccounts(t *testing.T) {
-	var (
-		limit          int32 = 10
-		offset         int32 = 0
-		currentStartId int32 = 1
-	)
-
-	args := ListAccountsParams{
-		Limit:  limit,
-		Offset: offset,
+func TestListAccounts(t *testing.T) {
+	listParams := ListAccountsParams{
+		Limit:  10,
+		Offset: 0,
 	}
 
-	accounts, err := testQueries.ListAccounts(ctx, args)
-	require.NoError(t, err)
-	require.NotEmpty(t, accounts)
-	require.Len(t, accounts, int(limit))
-	require.Equal(t, int64(currentStartId+offset), accounts[0].ID)
-	require.Equal(t, int64(currentStartId+offset+limit-1), accounts[limit-1].ID)
+	listParams2 := ListAccountsParams{
+		Limit:  -1,
+		Offset: 0,
+	}
+
+	for _, tc := range []struct {
+		name          string
+		params        ListAccountsParams
+		checkResponse func(t *testing.T, tc ListAccountsParams, result []Account, err error)
+	}{
+		{
+			name:   "OK",
+			params: listParams,
+			checkResponse: func(t *testing.T, tc ListAccountsParams, result []Account, err error) {
+				require.NoError(t, err)
+				require.NotEmpty(t, result)
+
+				require.Len(t, result, int(tc.Limit))
+				require.Equal(t, int64(1+tc.Offset), result[0].ID)
+				require.Equal(t, int64(1+tc.Offset+tc.Limit-1), result[tc.Limit-1].ID)
+			},
+		},
+		{
+			name:   "Invalid limit",
+			params: listParams2,
+			checkResponse: func(t *testing.T, tc ListAccountsParams, result []Account, err error) {
+				require.Error(t, err)
+				require.Empty(t, result)
+				require.EqualError(t, err, "ERROR: LIMIT must not be negative (SQLSTATE 2201W)")
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			accounts, err := store.ListAccounts(ctx, tc.params)
+			tc.checkResponse(t, tc.params, accounts, err)
+		})
+	}
 }
 
 func TestUpdateAccount(t *testing.T) {
 	faker := gofakeit.New(0)
 
-	account, err := testQueries.GetAccount(ctx, int64(faker.IntRange(0, 99)))
+	account, err := store.GetAccount(ctx, int64(faker.IntRange(0, 99)))
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
 	require.NotZero(t, account.ID)
@@ -119,7 +149,7 @@ func TestUpdateAccount(t *testing.T) {
 		newArgs.Balance += 1
 	}
 
-	newAccountData, err := testQueries.UpdateAccountBalance(ctx, newArgs)
+	newAccountData, err := store.UpdateAccountBalance(ctx, newArgs)
 	require.NoError(t, err)
 	require.NotEmpty(t, newAccountData)
 	require.Equal(t, newArgs.ID, newAccountData.ID)

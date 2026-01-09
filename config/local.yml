@@ -1,0 +1,5 @@
+env: 1
+connection_db: "postgres://root:${DB_PASSWORD}@localhost:5432/simple_bank"
+http:
+  host: "localhost"
+  port: 8080
