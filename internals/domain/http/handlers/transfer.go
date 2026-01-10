@@ -28,7 +28,7 @@ func NewTransferHandler(log *slog.Logger, store db.Store) *TransferHandler {
 	}
 }
 
-func (h *TransferHandler) CreateTransfer(ctx context.Context, in requests.TransferRequest) (*db.Transfer, error) {
+func (h *TransferHandler) CreateTransfer(ctx context.Context, in requests.TransferRequest) (*db.TransferTxResponse, error) {
 	log := h.log.With("op", opCreateTransfer)
 
 	if ok, err := h.accountCurrenciesChecker(
@@ -38,7 +38,7 @@ func (h *TransferHandler) CreateTransfer(ctx context.Context, in requests.Transf
 		return nil, err
 	}
 
-	result, err := h.store.TransferTx(ctx, db.TransferTxOptions{
+	transfer, err := h.store.TransferTx(ctx, db.TransferTxOptions{
 		FromAccountID: in.FromAccountID,
 		ToAccountID:   in.ToAccountID,
 		Amount:        in.Amount,
@@ -48,7 +48,7 @@ func (h *TransferHandler) CreateTransfer(ctx context.Context, in requests.Transf
 		return nil, sl.ErrUpLevel(opCreateTransfer, err)
 	}
 
-	return &result.Transfer, nil
+	return &transfer, nil
 }
 
 func (h *TransferHandler) accountCurrenciesChecker(
