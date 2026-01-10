@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"time"
 
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
@@ -21,7 +23,7 @@ type Simplebank interface {
 	UpdateAccountBalance(ctx context.Context, in requests.UpdateAccountRequest) (*db.Account, error)
 	AddAccountBalance(ctx context.Context, in requests.AddAccountBalanceRequest) (*db.Account, error)
 	DeleteAccount(ctx context.Context, id int64) error
-	CreateTransfer(ctx context.Context, in requests.TransferRequest) (*db.Transfer, error)
+	CreateTransfer(ctx context.Context, in requests.TransferRequest) (*db.TransferTxResponse, error)
 	CreateUser(ctx context.Context, in requests.CreateUserRequest) (*db.CreateUserRow, error)
 	GetUser(ctx context.Context, username string) (*db.GetUserRow, error)
 	UpdateUserPassword(ctx context.Context, in requests.UpdateUserPasswordRequest) (*db.UpdatePasswordRow, error)
@@ -39,6 +41,16 @@ func NewServer() *Server {
 
 	// Initialize default router
 	router := gin.Default()
+
+	// CORS enable
+	router.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"http://localhost:3000"},
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
+		AllowHeaders:     []string{"*"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
 
 	// Register new validation rule for struct tags in models or requests
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
