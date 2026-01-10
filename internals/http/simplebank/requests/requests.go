@@ -41,14 +41,14 @@ type CallUserRequest struct {
 
 type CreateUserRequest struct {
 	Username string `json:"username" binding:"required,alphanum"`
-	Password string `json:"password" binding:"required,password,alphanum"`
+	Password string `json:"password" binding:"required,password"`
 	FullName string `json:"full_name" binding:"required,fullname"`
 	Email    string `json:"email" binding:"required,email"`
 }
 
 type UpdateUserPasswordRequest struct {
 	Username string `json:"username" binding:"required,alphanum"`
-	Password string `json:"password" binding:"required,password,alphanum"`
+	Password string `json:"password" binding:"required,password"`
 }
 
 type UpdateUserFullNameRequest struct {
