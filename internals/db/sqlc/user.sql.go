@@ -89,15 +89,59 @@ func (q *Queries) GetUser(ctx context.Context, username string) (GetUserRow, err
 	return i, err
 }
 
-const getUserPrivate = `-- name: GetUserPrivate :one
+const getUserPassword = `-- name: GetUserPassword :one
 SELECT hashed_password FROM users WHERE username = $1 LIMIT 1 FOR UPDATE
 `
 
-func (q *Queries) GetUserPrivate(ctx context.Context, username string) (string, error) {
-	row := q.db.QueryRow(ctx, getUserPrivate, username)
+func (q *Queries) GetUserPassword(ctx context.Context, username string) (string, error) {
+	row := q.db.QueryRow(ctx, getUserPassword, username)
 	var hashed_password string
 	err := row.Scan(&hashed_password)
 	return hashed_password, err
+}
+
+const getUserPrivate = `-- name: GetUserPrivate :one
+SELECT u.username, u.hashed_password, u.full_name, u.email, u.password_changed_at, u.created_at, COALESCE(a.level_right, 0) as level_right
+    FROM users as u
+    LEFT JOIN admins as a on a.owner = u.username
+    WHERE u.username = $1
+    LIMIT 1
+`
+
+type GetUserPrivateRow struct {
+	Username          string             `json:"username"`
+	HashedPassword    string             `json:"hashed_password"`
+	FullName          string             `json:"full_name"`
+	Email             string             `json:"email"`
+	PasswordChangedAt pgtype.Timestamptz `json:"password_changed_at"`
+	CreatedAt         pgtype.Timestamptz `json:"created_at"`
+	LevelRight        pgtype.Numeric     `json:"level_right"`
+}
+
+func (q *Queries) GetUserPrivate(ctx context.Context, username string) (GetUserPrivateRow, error) {
+	row := q.db.QueryRow(ctx, getUserPrivate, username)
+	var i GetUserPrivateRow
+	err := row.Scan(
+		&i.Username,
+		&i.HashedPassword,
+		&i.FullName,
+		&i.Email,
+		&i.PasswordChangedAt,
+		&i.CreatedAt,
+		&i.LevelRight,
+	)
+	return i, err
+}
+
+const isAdmin = `-- name: IsAdmin :one
+SELECT bool(coalesce(a.level_right, 0)) FROM users as u LEFT JOIN admins as a on a.owner = u.username WHERE u.username = $1 LIMIT 1
+`
+
+func (q *Queries) IsAdmin(ctx context.Context, username string) (bool, error) {
+	row := q.db.QueryRow(ctx, isAdmin, username)
+	var bool bool
+	err := row.Scan(&bool)
+	return bool, err
 }
 
 const updateName = `-- name: UpdateName :one

@@ -1,0 +1,3 @@
+ALTER TABLE IF EXISTS "admins" DROP CONSTRAINT IF EXISTS "admins_owner_fkey";
+
+DROP TABLE IF EXISTS "admins";

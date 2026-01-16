@@ -16,6 +16,11 @@ type Account struct {
 	CreatedAt pgtype.Timestamptz `json:"created_at"`
 }
 
+type Admin struct {
+	Owner      string         `json:"owner"`
+	LevelRight pgtype.Numeric `json:"level_right"`
+}
+
 type Entry struct {
 	ID        int64       `json:"id"`
 	AccountID pgtype.Int8 `json:"account_id"`

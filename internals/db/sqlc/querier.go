@@ -20,7 +20,9 @@ type Querier interface {
 	GetEntry(ctx context.Context, id int64) (Entry, error)
 	GetTransfer(ctx context.Context, id int64) (Transfer, error)
 	GetUser(ctx context.Context, username string) (GetUserRow, error)
-	GetUserPrivate(ctx context.Context, username string) (string, error)
+	GetUserPassword(ctx context.Context, username string) (string, error)
+	GetUserPrivate(ctx context.Context, username string) (GetUserPrivateRow, error)
+	IsAdmin(ctx context.Context, username string) (bool, error)
 	// More safety when use parallel calculating and transactions
 	// //name: GetAccountForUpdate :one
 	// SELECT * FROM accounts WHERE id=$1 LIMIT 1 FOR UPDATE;
