@@ -3,6 +3,7 @@ package simplebank
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"net/http"
 	"time"
 
@@ -11,24 +12,27 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 	db "github.com/nhassl3/simplebank/internals/db/sqlc"
-	"github.com/nhassl3/simplebank/internals/http/simplebank/requests"
+	"github.com/nhassl3/simplebank/internals/http/middleware"
+	"github.com/nhassl3/simplebank/internals/http/simplebank/session"
 	"github.com/nhassl3/simplebank/internals/lib/logger/sl"
+	"github.com/nhassl3/simplebank/internals/lib/token"
 	valid "github.com/nhassl3/simplebank/internals/lib/validator"
 )
 
 type Simplebank interface {
-	CreateAccount(ctx context.Context, in requests.CreateAccountRequest) (*db.Account, error)
+	CreateAccount(ctx context.Context, in session.CreateAccountRequest) (*db.Account, error)
 	GetAccount(ctx context.Context, id int64) (*db.Account, error)
-	ListAccounts(ctx context.Context, in requests.ListAccountsRequest) (*[]db.Account, error)
-	UpdateAccountBalance(ctx context.Context, in requests.UpdateAccountRequest) (*db.Account, error)
-	AddAccountBalance(ctx context.Context, in requests.AddAccountBalanceRequest) (*db.Account, error)
+	ListAccounts(ctx context.Context, in session.ListAccountsRequest) (*[]db.Account, error)
+	UpdateAccountBalance(ctx context.Context, in session.UpdateAccountRequest) (*db.Account, error)
+	AddAccountBalance(ctx context.Context, in session.AddAccountBalanceRequest) (*db.Account, error)
 	DeleteAccount(ctx context.Context, id int64) error
-	CreateTransfer(ctx context.Context, in requests.TransferRequest) (*db.TransferTxResponse, error)
-	CreateUser(ctx context.Context, in requests.CreateUserRequest) (*db.CreateUserRow, error)
+	CreateTransfer(ctx context.Context, in session.TransferRequest) (*db.TransferTxResponse, error)
+	CreateUser(ctx context.Context, in session.CreateUserRequest) (*session.AuthResponse, error)
 	GetUser(ctx context.Context, username string) (*db.GetUserRow, error)
-	UpdateUserPassword(ctx context.Context, in requests.UpdateUserPasswordRequest) (*db.UpdatePasswordRow, error)
-	UpdateUserFullName(ctx context.Context, in requests.UpdateUserFullNameRequest) (*db.UpdateNameRow, error)
+	UpdateUserPassword(ctx context.Context, in session.UpdateUserPasswordRequest) (*db.UpdatePasswordRow, error)
+	UpdateUserFullName(ctx context.Context, in session.UpdateUserFullNameRequest) (*db.UpdateNameRow, error)
 	DeleteUser(ctx context.Context, username string) error
+	LoginUser(ctx context.Context, in session.LoginRequest) (*session.AuthResponse, error)
 }
 
 type Server struct {
@@ -36,7 +40,7 @@ type Server struct {
 	Router     *gin.Engine
 }
 
-func NewServer() *Server {
+func MustNewServer(jwtMaker token.Maker, log *slog.Logger) *Server {
 	var server Server
 
 	// Initialize default router
@@ -52,7 +56,7 @@ func NewServer() *Server {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	// Register new validation rule for struct tags in models or requests
+	// Register new validation rule for struct tags in models or session
 	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 		if err := v.RegisterValidation("currency", valid.ValidCurrency); err != nil {
 			panic("failed to register validator for currency: " + err.Error())
@@ -67,6 +71,7 @@ func NewServer() *Server {
 
 	// REST API version 1:
 	v1 := router.Group("/api/v1")
+	v1.Use(middleware.AuthMiddleware(jwtMaker, log))
 	{
 		// Account endpoints set
 		account := v1.Group("/accounts")
@@ -88,12 +93,17 @@ func NewServer() *Server {
 		// User endpoints set
 		user := v1.Group("/users")
 		{
-			user.POST("/", server.CreateUser)
 			user.GET("/:username", server.GetUser)
 			user.PUT("/update/fullname", server.UpdateUserFullName)
 			user.PUT("/update/password", server.UpdateUserPassword)
 			user.DELETE("/:username", server.DeleteUser)
 		}
+	}
+
+	v1Auth := router.Group("/api/auth")
+	{
+		v1Auth.POST("/login", server.LoginUser)
+		v1Auth.POST("/signup", server.CreateUser)
 	}
 
 	server.Router = router
@@ -107,7 +117,7 @@ func (s *Server) Register(simpleBankObj Simplebank) {
 
 // CreateAccount creates new account with zero value balance and only for two currencies: USD and EUR
 func (s *Server) CreateAccount(ctx *gin.Context) {
-	var in requests.CreateAccountRequest
+	var in session.CreateAccountRequest
 	if err := ctx.ShouldBindJSON(&in); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -131,7 +141,7 @@ func (s *Server) CreateAccount(ctx *gin.Context) {
 
 // GetAccount returns account with information by given ID
 func (s *Server) GetAccount(ctx *gin.Context) {
-	var in requests.CallAccountRequest
+	var in session.CallAccountRequest
 	if err := ctx.ShouldBindUri(&in); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -152,7 +162,7 @@ func (s *Server) GetAccount(ctx *gin.Context) {
 
 // ListAccounts finds multiple accounts within the given limit and starts searching by the ID specified in the offset
 func (s *Server) ListAccounts(ctx *gin.Context) {
-	var in requests.ListAccountsRequest
+	var in session.ListAccountsRequest
 	if err := ctx.ShouldBindQuery(&in); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -172,7 +182,7 @@ func (s *Server) ListAccounts(ctx *gin.Context) {
 
 // UpdateAccountBalance updates the account balance by replacing the number
 func (s *Server) UpdateAccountBalance(ctx *gin.Context) {
-	var in requests.UpdateAccountRequest
+	var in session.UpdateAccountRequest
 	if err := ctx.ShouldBindJSON(&in); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -193,7 +203,7 @@ func (s *Server) UpdateAccountBalance(ctx *gin.Context) {
 
 // AddAccountBalance add the account balance by adding or subtracting the number
 func (s *Server) AddAccountBalance(ctx *gin.Context) {
-	var in requests.AddAccountBalanceRequest
+	var in session.AddAccountBalanceRequest
 	if err := ctx.ShouldBindJSON(&in); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -214,7 +224,7 @@ func (s *Server) AddAccountBalance(ctx *gin.Context) {
 
 // DeleteAccount deletes account from the system but not delete user
 func (s *Server) DeleteAccount(ctx *gin.Context) {
-	var in requests.CallAccountRequest
+	var in session.CallAccountRequest
 	if err := ctx.ShouldBindUri(&in); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -234,7 +244,7 @@ func (s *Server) DeleteAccount(ctx *gin.Context) {
 
 // CreateTransfer creates transaction with transfer doughs from one account to another
 func (s *Server) CreateTransfer(ctx *gin.Context) {
-	var in requests.TransferRequest
+	var in session.TransferRequest
 	if err := ctx.ShouldBindJSON(&in); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -265,9 +275,33 @@ func (s *Server) CreateTransfer(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, transfer)
 }
 
+// LoginUser sign in user in the system
+func (s *Server) LoginUser(ctx *gin.Context) {
+	var in session.LoginRequest
+	if err := ctx.ShouldBindJSON(&in); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := s.simplebank.LoginUser(ctx, in)
+	if err != nil {
+		if errors.Is(err, sl.ErrorNoAccounts) {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Account not found"})
+			return
+		} else if errors.Is(err, sl.ErrorUnauthorized) {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Unknown login or password"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, user)
+}
+
 // CreateUser creates new user in the system. User needed to create a few accounts
 func (s *Server) CreateUser(ctx *gin.Context) {
-	var in requests.CreateUserRequest
+	var in session.CreateUserRequest
 	if err := ctx.ShouldBindJSON(&in); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -288,7 +322,7 @@ func (s *Server) CreateUser(ctx *gin.Context) {
 
 // GetUser returns user in the system by given username
 func (s *Server) GetUser(ctx *gin.Context) {
-	var in requests.CallUserRequest
+	var in session.CallUserRequest
 	if err := ctx.ShouldBindUri(&in); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -309,7 +343,7 @@ func (s *Server) GetUser(ctx *gin.Context) {
 
 // UpdateUserPassword updates user password by given username. Password should be >= 12 with no spaces and <= 38
 func (s *Server) UpdateUserPassword(ctx *gin.Context) {
-	var in requests.UpdateUserPasswordRequest
+	var in session.UpdateUserPasswordRequest
 	if err := ctx.ShouldBindJSON(&in); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -333,7 +367,7 @@ func (s *Server) UpdateUserPassword(ctx *gin.Context) {
 
 // UpdateUserFullName updates the user's full name
 func (s *Server) UpdateUserFullName(ctx *gin.Context) {
-	var in requests.UpdateUserFullNameRequest
+	var in session.UpdateUserFullNameRequest
 	if err := ctx.ShouldBindJSON(&in); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -354,7 +388,7 @@ func (s *Server) UpdateUserFullName(ctx *gin.Context) {
 
 // DeleteUser removes user from the system with him created accounts
 func (s *Server) DeleteUser(ctx *gin.Context) {
-	var in requests.CallUserRequest
+	var in session.CallUserRequest
 	if err := ctx.ShouldBindUri(&in); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

@@ -7,7 +7,7 @@ import (
 	"log/slog"
 
 	db "github.com/nhassl3/simplebank/internals/db/sqlc"
-	"github.com/nhassl3/simplebank/internals/http/simplebank/requests"
+	"github.com/nhassl3/simplebank/internals/http/simplebank/session"
 	"github.com/nhassl3/simplebank/internals/lib/logger/sl"
 )
 
@@ -28,7 +28,7 @@ func NewTransferHandler(log *slog.Logger, store db.Store) *TransferHandler {
 	}
 }
 
-func (h *TransferHandler) CreateTransfer(ctx context.Context, in requests.TransferRequest) (*db.TransferTxResponse, error) {
+func (h *TransferHandler) CreateTransfer(ctx context.Context, in session.TransferRequest) (*db.TransferTxResponse, error) {
 	log := h.log.With("op", opCreateTransfer)
 
 	if ok, err := h.accountCurrenciesChecker(

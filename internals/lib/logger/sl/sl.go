@@ -6,6 +6,7 @@ import (
 	"log/slog"
 )
 
+// Custom errors
 var (
 	ErrorNoAccounts            = errors.New("failed to find accounts")
 	ErrorAccountAlreadyExists  = errors.New("account already exists")
@@ -17,6 +18,9 @@ var (
 	ErrorUserAlreadyExists     = errors.New("user already exists")
 	ErrorNoUsers               = errors.New("no users found")
 	ErrorPasswordsMatch        = errors.New("passwords match")
+	ErrorUnauthorized          = errors.New("unauthorized")
+	ErrorInvalidToken          = errors.New("invalid token")
+	ErrorExpiredToken          = errors.New("expired token")
 )
 
 func Err(err error) slog.Attr {

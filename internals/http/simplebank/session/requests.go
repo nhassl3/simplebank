@@ -1,4 +1,4 @@
-package sessions
+package session
 
 type CreateAccountRequest struct {
 	Owner    string `json:"owner" binding:"required"`
@@ -32,7 +32,7 @@ type TransferRequest struct {
 	Currency      string `json:"currency" binding:"required,currency"`
 }
 
-// User sessions
+// User session
 
 // CallUserRequest uses in GetUser and DeleteUser methods
 type CallUserRequest struct {

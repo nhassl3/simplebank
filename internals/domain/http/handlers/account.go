@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5/pgconn"
 	db "github.com/nhassl3/simplebank/internals/db/sqlc"
-	"github.com/nhassl3/simplebank/internals/http/simplebank/requests"
+	"github.com/nhassl3/simplebank/internals/http/simplebank/session"
 	"github.com/nhassl3/simplebank/internals/lib/logger/sl"
 )
 
@@ -34,7 +34,7 @@ func NewAccountHandler(log *slog.Logger, store db.Store) *AccountHandler {
 }
 
 // CreateAccount creates new account with given parameters
-func (h *AccountHandler) CreateAccount(ctx context.Context, in requests.CreateAccountRequest) (*db.Account, error) {
+func (h *AccountHandler) CreateAccount(ctx context.Context, in session.CreateAccountRequest) (*db.Account, error) {
 	log := h.log.With(slog.String("op", opCreateAccount))
 
 	account, err := h.store.CreateAccount(ctx, db.CreateAccountParams{
@@ -74,7 +74,7 @@ func (h *AccountHandler) GetAccount(ctx context.Context, id int64) (*db.Account,
 }
 
 // ListAccounts lists accounts with given offset and limit
-func (h *AccountHandler) ListAccounts(ctx context.Context, in requests.ListAccountsRequest) (*[]db.Account, error) {
+func (h *AccountHandler) ListAccounts(ctx context.Context, in session.ListAccountsRequest) (*[]db.Account, error) {
 	log := h.log.With("op", opListAccounts)
 
 	account, err := h.store.ListAccounts(ctx, db.ListAccountsParams{
@@ -94,7 +94,7 @@ func (h *AccountHandler) ListAccounts(ctx context.Context, in requests.ListAccou
 }
 
 // UpdateAccountBalance updates balance of account by given balance
-func (h *AccountHandler) UpdateAccountBalance(ctx context.Context, in requests.UpdateAccountRequest) (*db.Account, error) {
+func (h *AccountHandler) UpdateAccountBalance(ctx context.Context, in session.UpdateAccountRequest) (*db.Account, error) {
 	log := h.log.With("op", opUpdateAccountBalance)
 
 	account, err := h.store.UpdateAccountBalance(ctx, db.UpdateAccountBalanceParams{
@@ -114,7 +114,7 @@ func (h *AccountHandler) UpdateAccountBalance(ctx context.Context, in requests.U
 }
 
 // AddAccountBalance adds balance for account on was given amount
-func (h *AccountHandler) AddAccountBalance(ctx context.Context, in requests.AddAccountBalanceRequest) (*db.Account, error) {
+func (h *AccountHandler) AddAccountBalance(ctx context.Context, in session.AddAccountBalanceRequest) (*db.Account, error) {
 	log := h.log.With("op", opAddAccountBalance)
 
 	account, err := h.store.AddAccountBalance(ctx, db.AddAccountBalanceParams{

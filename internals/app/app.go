@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 	db "github.com/nhassl3/simplebank/internals/db/sqlc"
 	domain "github.com/nhassl3/simplebank/internals/domain/http"
 	"github.com/nhassl3/simplebank/internals/http/simplebank"
+	"github.com/nhassl3/simplebank/internals/lib/token"
 )
 
 type App struct {
@@ -19,17 +21,25 @@ type App struct {
 	Address string
 }
 
-func NewApp(log *slog.Logger, connectionDBString, host string, port int) *App {
+// MustNewApp creates new application if not - panic
+func MustNewApp(log *slog.Logger, secretKey, connectionDBString, host string, port int, duration time.Duration) *App {
 	pool, err := pgxpool.New(context.Background(), connectionDBString)
 	if err != nil {
 		panic(err)
 	}
+
+	jwtMaker, err := token.NewJWTMaker(secretKey, duration)
+	if err != nil {
+		panic(err)
+	}
+
 	store := db.NewStore(pool)
+
 	return &App{
 		pool:    pool,
 		store:   store,
-		handler: domain.NewHandler(log, store),
-		Server:  simplebank.NewServer(),
+		handler: domain.NewHandler(log, store, jwtMaker),
+		Server:  simplebank.MustNewServer(jwtMaker, log),
 		Address: fmt.Sprintf("%s:%d", host, port),
 	}
 }
