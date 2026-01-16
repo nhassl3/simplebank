@@ -5,6 +5,7 @@ import (
 	"flag"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
@@ -24,6 +25,10 @@ type Config struct {
 		Host string `yaml:"host" env-default:"localhost"`
 		Port int    `yaml:"port" env-default:"8080"`
 	} `yaml:"http"`
+	JWT struct {
+		Secret              string        `yaml:"secret_key" env-required:"true"` // change configuration on viper to hide secret word
+		AccessTokenDuration time.Duration `yaml:"access_token_duration" env-default:"15m"`
+	} `yaml:"jwt"`
 }
 
 func MustLoadConfig() *Config {
@@ -39,6 +44,7 @@ func MustLoadConfigByString(path string) *Config {
 	if err := cleanenv.ReadConfig(path, &config); err != nil {
 		panic("Could not load config from " + path)
 	}
+	// TODO: replace string.Replace to viper configuration
 	config.ConnectionDBString = strings.Replace(
 		config.ConnectionDBString,
 		"${DB_PASSWORD}",

@@ -1,4 +1,9 @@
+# config/dev
 env: 2
+#connection_db: "postgres://root:${DB_PASSWORD}@localhost:5432/simple_bank"
 http:
   host: "localhost"
   port: 8080
+jwt:
+#  secret_key: "github.com/nhassl3/simplebank-secret-key-with-32-character"
+  access_token_duration: "15m"

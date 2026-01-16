@@ -16,7 +16,14 @@ func main() {
 	log := logger.MustLoad(cfg.EnvDefault)
 	slog.SetDefault(log)
 
-	application := app.NewApp(log, cfg.ConnectionDBString, cfg.Http.Host, cfg.Http.Port)
+	application := app.MustNewApp(
+		log,
+		cfg.JWT.Secret,
+		cfg.ConnectionDBString,
+		cfg.Http.Host,
+		cfg.Http.Port,
+		cfg.JWT.AccessTokenDuration,
+	)
 
 	log.Info("starting application")
 	go application.MustStart()
