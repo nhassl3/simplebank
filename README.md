@@ -1,6 +1,6 @@
 # Simplebank 💸
 
-![simplebank_db_diagram.svg](.github/source/simplebank_db_diagram.svg)
+![simplebank_db_diagram.svg](.github/source/000003_add_is_admin_column.svg)
 
 # Structure DB 🗄️:
-- [simplebank_db_diagram.pdf](.github/source/simplebank_db_diagram.pdf)
+- [simplebank_db_diagram.pdf](.github/source/000003_add_is_admin_column.pdf)

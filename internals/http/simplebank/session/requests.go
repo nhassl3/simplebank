@@ -1,4 +1,4 @@
-package requests
+package sessions
 
 type CreateAccountRequest struct {
 	Owner    string `json:"owner" binding:"required"`
@@ -32,7 +32,7 @@ type TransferRequest struct {
 	Currency      string `json:"currency" binding:"required,currency"`
 }
 
-// User requests
+// User sessions
 
 // CallUserRequest uses in GetUser and DeleteUser methods
 type CallUserRequest struct {
@@ -54,4 +54,9 @@ type UpdateUserPasswordRequest struct {
 type UpdateUserFullNameRequest struct {
 	Username string `json:"username" binding:"required,alphanum"`
 	FullName string `json:"full_name" binding:"required,fullname"`
+}
+
+type LoginRequest struct {
+	Username string `json:"username" binding:"required,alphanum"`
+	Password string `json:"password" binding:"required,password"`
 }
