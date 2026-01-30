@@ -1,9 +1,9 @@
 package sl
 
 import (
-	"errors"
-	"fmt"
 	"log/slog"
+
+	"github.com/pkg/errors"
 )
 
 // Custom errors
@@ -19,8 +19,7 @@ var (
 	ErrorNoUsers               = errors.New("no users found")
 	ErrorPasswordsMatch        = errors.New("passwords match")
 	ErrorUnauthorized          = errors.New("unauthorized")
-	ErrorInvalidToken          = errors.New("invalid token")
-	ErrorExpiredToken          = errors.New("expired token")
+	ErrorForbidden             = errors.New("operation forbidden for you")
 )
 
 func Err(err error) slog.Attr {
@@ -31,5 +30,5 @@ func Err(err error) slog.Attr {
 }
 
 func ErrUpLevel(op string, err error) error {
-	return fmt.Errorf(op, err)
+	return errors.Wrap(err, op)
 }
