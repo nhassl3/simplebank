@@ -26,7 +26,7 @@ type Simplebank interface {
 	UpdateAccountBalance(ctx context.Context, in session.UpdateAccountRequest) (*db.Account, error)
 	AddAccountBalance(ctx context.Context, in session.AddAccountBalanceRequest) (*db.Account, error)
 	DeleteAccount(ctx context.Context, id int64) error
-	CreateTransfer(ctx context.Context, in session.TransferRequest) (*db.TransferTxResponse, error)
+	CreateTransfer(ctx context.Context, in session.TransferRequest, emitter string) (*db.TransferTxResponse, error)
 	CreateUser(ctx context.Context, in session.CreateUserRequest) (*session.AuthResponse, error)
 	GetUser(ctx context.Context, username string) (*db.GetUserRow, error)
 	UpdateUserPassword(ctx context.Context, in session.UpdateUserPasswordRequest) (*db.UpdatePasswordRow, error)
@@ -40,7 +40,7 @@ type Server struct {
 	Router     *gin.Engine
 }
 
-func MustNewServer(jwtMaker token.Maker, log *slog.Logger) *Server {
+func MustNewServer(tgpMaker token.Maker, log *slog.Logger) *Server {
 	var server Server
 
 	// Initialize default router
@@ -71,7 +71,7 @@ func MustNewServer(jwtMaker token.Maker, log *slog.Logger) *Server {
 
 	// REST API version 1:
 	v1 := router.Group("/api/v1")
-	v1.Use(middleware.AuthMiddleware(jwtMaker, log))
+	v1.Use(middleware.AuthMiddleware(tgpMaker, log))
 	{
 		// Account endpoints set
 		account := v1.Group("/accounts")
@@ -123,6 +123,8 @@ func (s *Server) CreateAccount(ctx *gin.Context) {
 		return
 	}
 
+	checkUser(ctx, in.Owner)
+
 	account, err := s.simplebank.CreateAccount(ctx, in)
 	if err != nil {
 		if errors.Is(err, sl.ErrorAccountAlreadyExists) {
@@ -168,6 +170,14 @@ func (s *Server) ListAccounts(ctx *gin.Context) {
 		return
 	}
 
+	payload, H := getPayload(ctx)
+	if H != nil {
+		ctx.JSON(http.StatusUnauthorized, H)
+		return
+	}
+
+	in.Owner = payload.Subject
+
 	accounts, err := s.simplebank.ListAccounts(ctx, in)
 	if err != nil {
 		if errors.Is(err, sl.ErrorNoAccounts) {
@@ -180,15 +190,17 @@ func (s *Server) ListAccounts(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, accounts)
 }
 
-// UpdateAccountBalance updates the account balance by replacing the number
-func (s *Server) UpdateAccountBalance(ctx *gin.Context) {
-	var in session.UpdateAccountRequest
-	if err := ctx.ShouldBindJSON(&in); err != nil {
+func balanceUpdater[T session.UpdateReqType](
+	ctx *gin.Context,
+	handler func(ctx context.Context, in T) (*db.Account, error),
+) {
+	var req T
+	if err := ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	account, err := s.simplebank.UpdateAccountBalance(ctx, in)
+	account, err := handler(ctx, req)
 	if err != nil {
 		if errors.Is(err, sl.ErrorNoAccounts) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Account not found"})
@@ -201,25 +213,14 @@ func (s *Server) UpdateAccountBalance(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, account)
 }
 
+// UpdateAccountBalance updates the account balance by replacing the number
+func (s *Server) UpdateAccountBalance(ctx *gin.Context) {
+	balanceUpdater[session.UpdateAccountRequest](ctx, s.simplebank.UpdateAccountBalance)
+}
+
 // AddAccountBalance add the account balance by adding or subtracting the number
 func (s *Server) AddAccountBalance(ctx *gin.Context) {
-	var in session.AddAccountBalanceRequest
-	if err := ctx.ShouldBindJSON(&in); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	account, err := s.simplebank.AddAccountBalance(ctx, in)
-	if err != nil {
-		if errors.Is(err, sl.ErrorNoAccounts) {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "Account not found"})
-			return
-		}
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, account)
+	balanceUpdater[session.AddAccountBalanceRequest](ctx, s.simplebank.AddAccountBalance)
 }
 
 // DeleteAccount deletes account from the system but not delete user
@@ -250,7 +251,13 @@ func (s *Server) CreateTransfer(ctx *gin.Context) {
 		return
 	}
 
-	transfer, err := s.simplebank.CreateTransfer(ctx, in)
+	payload, H := getPayload(ctx)
+	if H != nil {
+		ctx.JSON(http.StatusUnauthorized, H)
+		return
+	}
+
+	transfer, err := s.simplebank.CreateTransfer(ctx, in, payload.Subject)
 	if err != nil {
 		if errors.Is(err, sl.ErrorNotEnoughMoney) {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Sender does not have enough money"})
@@ -307,6 +314,8 @@ func (s *Server) CreateUser(ctx *gin.Context) {
 		return
 	}
 
+	checkUser(ctx, in.Username)
+
 	user, err := s.simplebank.CreateUser(ctx, in)
 	if err != nil {
 		if errors.Is(err, sl.ErrorUserAlreadyExists) {
@@ -328,6 +337,8 @@ func (s *Server) GetUser(ctx *gin.Context) {
 		return
 	}
 
+	checkUser(ctx, in.Username)
+
 	user, err := s.simplebank.GetUser(ctx, in.Username)
 	if err != nil {
 		if errors.Is(err, sl.ErrorNoUsers) {
@@ -348,6 +359,8 @@ func (s *Server) UpdateUserPassword(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
+
+	checkUser(ctx, in.Username)
 
 	user, err := s.simplebank.UpdateUserPassword(ctx, in)
 	if err != nil {
@@ -373,6 +386,8 @@ func (s *Server) UpdateUserFullName(ctx *gin.Context) {
 		return
 	}
 
+	checkUser(ctx, in.Username)
+
 	user, err := s.simplebank.UpdateUserFullName(ctx, in)
 	if err != nil {
 		if errors.Is(err, sl.ErrorNoUsers) {
@@ -394,6 +409,8 @@ func (s *Server) DeleteUser(ctx *gin.Context) {
 		return
 	}
 
+	checkUser(ctx, in.Username)
+
 	if err := s.simplebank.DeleteUser(ctx, in.Username); err != nil {
 		if errors.Is(err, sl.ErrorNoUsers) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
@@ -404,4 +421,25 @@ func (s *Server) DeleteUser(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, gin.H{"deleted": true})
+}
+
+func getPayload(ctx *gin.Context) (*token.Payload, gin.H) {
+	payload, ok := ctx.Get(middleware.AuthorizationPayloadKey)
+	if !ok {
+		return nil, gin.H{"error": "Unauthorized"}
+	}
+	return payload.(*token.Payload), nil
+}
+
+func checkUser(ctx *gin.Context, username string) {
+	payload, H := getPayload(ctx)
+	if H != nil {
+		ctx.JSON(http.StatusUnauthorized, H)
+		return
+	}
+
+	if payload.Claims["level_right"] == "0" && username != payload.Subject {
+		ctx.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
+		return
+	}
 }
