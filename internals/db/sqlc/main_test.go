@@ -14,7 +14,7 @@ import (
 
 var (
 	ctx      = context.Background()
-	cfg, err = config.LoadConfigByString("../../../config/local.yaml", "../../../.env")
+	cfg, err = config.LoadConfigByString("testdata/local.yaml", "testdata/.env")
 	faker    = gofakeit.NewFaker(rand.NewPCG(11, 11), true)
 	pool     *pgxpool.Pool
 	store    Store
