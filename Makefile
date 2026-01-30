@@ -62,7 +62,7 @@ run: build
 clean:
 	rm -rf ./$(BUILD_DIR)/
 
-test: migrate-down migrate-up
+test:
 	go test -v -cover ./...
 
 .PHONY: createdb dropdb opendb postgres migrate-up migrate-down sqlc build run clean test mock migrate-down-once migrate-up-once
