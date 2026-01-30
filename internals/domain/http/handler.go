@@ -16,10 +16,10 @@ type Handler struct {
 	*handlers.UserHandler
 }
 
-func NewHandler(log *slog.Logger, store db.Store, jwtMaker token.Maker) simplebank.Simplebank {
+func NewHandler(log *slog.Logger, store db.Store, tgpMaker token.Maker) simplebank.Simplebank {
 	return &Handler{
 		handlers.NewAccountHandler(log, store),
 		handlers.NewTransferHandler(log, store),
-		handlers.NewUserHandler(log, store, jwtMaker),
+		handlers.NewUserHandler(log, store, tgpMaker),
 	}
 }

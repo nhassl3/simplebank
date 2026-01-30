@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 
+	"github.com/gin-gonic/gin"
 	"github.com/nhassl3/simplebank/internals/app"
 	"github.com/nhassl3/simplebank/internals/config"
 	"github.com/nhassl3/simplebank/internals/lib/logger"
@@ -13,16 +14,22 @@ import (
 func main() {
 	cfg := config.MustLoadConfig()
 
-	log := logger.MustLoad(cfg.EnvDefault)
+	log := logger.MustLoad(cfg.LogType)
 	slog.SetDefault(log)
+
+	// If type of logging equal 4 set gin mode of logging to the release mode
+	// else continue this stage
+	if cfg.LogType == 4 {
+		gin.SetMode(gin.ReleaseMode)
+	}
 
 	application := app.MustNewApp(
 		log,
-		cfg.JWT.Secret,
+		cfg.TGP.Secret,
 		cfg.ConnectionDBString,
 		cfg.Http.Host,
 		cfg.Http.Port,
-		cfg.JWT.AccessTokenDuration,
+		cfg.TGP.AccessTokenDuration,
 	)
 
 	log.Info("starting application")

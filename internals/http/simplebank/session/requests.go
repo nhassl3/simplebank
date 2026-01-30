@@ -11,8 +11,13 @@ type CallAccountRequest struct {
 }
 
 type ListAccountsRequest struct {
-	Page  int32 `form:"page" binding:"min=1"`
-	Limit int32 `form:"limit" binding:"required,oneof=3 6 9 12"`
+	Owner string `json:"owner" binding:"required"`
+	Page  int32  `form:"page" binding:"min=1"`
+	Limit int32  `form:"limit" binding:"required,oneof=3 6 9 12"`
+}
+
+type UpdateReqType interface {
+	UpdateAccountRequest | AddAccountBalanceRequest
 }
 
 type UpdateAccountRequest struct {
@@ -57,6 +62,6 @@ type UpdateUserFullNameRequest struct {
 }
 
 type LoginRequest struct {
-	Username string `json:"username" binding:"required,alphanum"`
-	Password string `json:"password" binding:"required,password"`
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
 }

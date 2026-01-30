@@ -44,11 +44,16 @@ func (h *AccountHandler) CreateAccount(ctx context.Context, in session.CreateAcc
 	})
 
 	if err != nil {
-		switch err.(*pgconn.PgError).Code {
-		case "23503":
-			return nil, sl.ErrorNoUsers
-		case "23505":
-			return nil, sl.ErrorAccountAlreadyExists
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) {
+			switch pgErr.Code {
+			case "23503":
+				return nil, sl.ErrorNoUsers
+			case "23505":
+				return nil, sl.ErrorAccountAlreadyExists
+			default:
+				return nil, pgErr
+			}
 		}
 		log.Error("failed to create account", sl.Err(err))
 		return nil, sl.ErrUpLevel(opCreateAccount, err)
@@ -78,6 +83,7 @@ func (h *AccountHandler) ListAccounts(ctx context.Context, in session.ListAccoun
 	log := h.log.With("op", opListAccounts)
 
 	account, err := h.store.ListAccounts(ctx, db.ListAccountsParams{
+		Owner:  in.Owner,
 		Offset: (in.Page - 1) * in.Limit,
 		Limit:  in.Limit,
 	})

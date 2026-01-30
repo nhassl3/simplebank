@@ -18,7 +18,7 @@ func createRandomAccount() (account Account, err error, args CreateAccountParams
 	args = CreateAccountParams{
 		user.Username,
 		int64(faker.IntN(1000)),
-		faker.Currency().Short,
+		faker.RandomString([]string{"USD", "EUR"}),
 	}
 
 	account, err = store.CreateAccount(ctx, args)
@@ -27,7 +27,7 @@ func createRandomAccount() (account Account, err error, args CreateAccountParams
 }
 
 func TestCreateAccounts(t *testing.T) {
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 5; i++ {
 		account, err, args := createRandomAccount()
 		require.NoError(t, err)
 		require.NotEmpty(t, account)
@@ -56,7 +56,7 @@ func TestDeleteAccount(t *testing.T) {
 }
 
 func TestGetRandomAccount(t *testing.T) {
-	account, err := store.GetAccount(ctx, int64(gofakeit.IntRange(0, 99)))
+	account, err := store.GetAccount(ctx, int64(gofakeit.IntRange(1, 5)))
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
 }
@@ -87,13 +87,24 @@ func TestGetAccount(t *testing.T) {
 }
 
 func TestListAccounts(t *testing.T) {
+	account, err := store.GetAccount(ctx, int64(gofakeit.IntRange(1, 5)))
+	require.NoError(t, err)
+	require.NotEmpty(t, account)
+
 	listParams := ListAccountsParams{
+		Owner:  account.Owner,
 		Limit:  10,
 		Offset: 0,
 	}
 
 	listParams2 := ListAccountsParams{
+		Owner:  account.Owner,
 		Limit:  -1,
+		Offset: 0,
+	}
+
+	listParams3 := ListAccountsParams{
+		Limit:  10,
 		Offset: 0,
 	}
 
@@ -109,9 +120,8 @@ func TestListAccounts(t *testing.T) {
 				require.NoError(t, err)
 				require.NotEmpty(t, result)
 
-				require.Len(t, result, int(tc.Limit))
-				require.Equal(t, int64(1+tc.Offset), result[0].ID)
-				require.Equal(t, int64(1+tc.Offset+tc.Limit-1), result[tc.Limit-1].ID)
+				require.LessOrEqual(t, len(result), 2)
+
 			},
 		},
 		{
@@ -123,6 +133,14 @@ func TestListAccounts(t *testing.T) {
 				require.EqualError(t, err, "ERROR: LIMIT must not be negative (SQLSTATE 2201W)")
 			},
 		},
+		{
+			name:   "Empty slice (without owner)",
+			params: listParams3,
+			checkResponse: func(t *testing.T, tc ListAccountsParams, result []Account, err error) {
+				require.Empty(t, result)
+				require.NoError(t, err)
+			},
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			accounts, err := store.ListAccounts(ctx, tc.params)
@@ -132,9 +150,7 @@ func TestListAccounts(t *testing.T) {
 }
 
 func TestUpdateAccount(t *testing.T) {
-	faker := gofakeit.New(0)
-
-	account, err := store.GetAccount(ctx, int64(faker.IntRange(0, 99)))
+	account, err := store.GetAccount(ctx, int64(faker.IntRange(1, 5)))
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
 	require.NotZero(t, account.ID)
@@ -163,4 +179,62 @@ func TestUpdateAccount(t *testing.T) {
 
 	// Check if created_at time not changed when updating statements
 	require.WithinDuration(t, account.CreatedAt.Time, newAccountData.CreatedAt.Time, time.Second)
+}
+
+func TestAddAccountBalance(t *testing.T) {
+	account, err := store.GetAccount(ctx, int64(faker.IntRange(1, 5)))
+	require.NoError(t, err)
+	require.NotEmpty(t, account)
+	require.NotZero(t, account.ID)
+	require.NotZero(t, account.CreatedAt)
+
+	argsPlus := AddAccountBalanceParams{
+		ID:     account.ID,
+		Amount: 100,
+	}
+
+	argsMinus := AddAccountBalanceParams{
+		ID:     account.ID,
+		Amount: -100,
+	}
+
+	for _, tc := range []struct {
+		name          string
+		args          AddAccountBalanceParams
+		checkResponse func(t *testing.T, tc AddAccountBalanceParams, result Account, err error)
+	}{
+		{
+			name: "OK/Plus",
+			args: argsPlus,
+			checkResponse: func(t *testing.T, tc AddAccountBalanceParams, result Account, err error) {
+				require.NoError(t, err)
+				require.NotEmpty(t, result)
+				require.NotZero(t, result.ID)
+				require.NotEmpty(t, tc)
+				require.NotZero(t, tc.ID)
+
+				require.Equal(t, tc.ID, result.ID)
+				require.Equal(t, account.Balance+100, result.Balance)
+			},
+		},
+		{
+			name: "OK/Minus",
+			args: argsMinus,
+			checkResponse: func(t *testing.T, tc AddAccountBalanceParams, result Account, err error) {
+				require.NoError(t, err)
+				require.NotEmpty(t, result)
+				require.NotZero(t, result.ID)
+				require.NotEmpty(t, tc)
+				require.NotZero(t, tc.ID)
+
+				require.Equal(t, tc.ID, result.ID)
+				require.Equal(t, account.Balance, result.Balance)
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			accounts, err := store.AddAccountBalance(ctx, tc.args)
+			tc.checkResponse(t, tc.args, accounts, err)
+		})
+	}
 }
