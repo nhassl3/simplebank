@@ -12,38 +12,40 @@ import (
 )
 
 const (
-	authorizationHeaderKey  = "authorization"
-	authorizationTypeBearer = "bearer"
-	authorizationPayloadKey = "authorization_payload"
+	authorizationHeaderKey            = "authorization"
+	authorizationTypeBearer           = "bearer"
+	AuthorizationPayloadKey           = "authorization_payload"
+	ErrorAuthorizationHeader          = "authorization header is not provided"
+	ErrorInvalidAuthorizationHeader   = "invalid authorization header format"
+	ErrorUnsupportedAuthorizationType = "unsupported authorization type"
+	ErrorTokenIsExpired               = "token is expired"
+	ErrorInvalidToken                 = "token is invalid"
+	ErrorFailedToVerify               = "failed to verify token"
+	ErrorUnauthorized                 = "unauthorized"
 )
 
 // AuthMiddleware creates a gin middleware for authorization
 func AuthMiddleware(tokenMaker token.Maker, log *slog.Logger) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		log = log.With("op", "middleware.AuthMiddleware")
-
 		authorizationHeader := ctx.GetHeader(authorizationHeaderKey)
 
 		if len(authorizationHeader) == 0 {
-			log.Warn("authorization header is not provided")
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "authorization header is not provided"})
-			ctx.Abort()
+			log.Warn(ErrorAuthorizationHeader)
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": ErrorAuthorizationHeader})
 			return
 		}
 
 		fields := strings.Fields(authorizationHeader)
 		if len(fields) < 2 {
-			log.Warn("invalid authorization header format")
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "invalid authorization header format"})
-			ctx.Abort()
+			log.Warn(ErrorInvalidAuthorizationHeader)
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": ErrorInvalidAuthorizationHeader})
 			return
 		}
 
 		authorizationType := strings.ToLower(fields[0])
 		if authorizationType != authorizationTypeBearer {
-			log.Warn("unsupported authorization type", slog.String("type", authorizationType))
-			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unsupported authorization type"})
-			ctx.Abort()
+			log.Warn(ErrorUnsupportedAuthorizationType, slog.String("type", authorizationType))
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": ErrorUnsupportedAuthorizationType})
 			return
 		}
 
@@ -51,24 +53,24 @@ func AuthMiddleware(tokenMaker token.Maker, log *slog.Logger) gin.HandlerFunc {
 		payload, err := tokenMaker.VerifyToken(accessToken)
 		if err != nil {
 			if errors.Is(err, token.ErrExpiredToken) {
-				log.Warn("token is expired", sl.Err(err))
-				ctx.JSON(http.StatusUnauthorized, gin.H{"error": "token is expired"})
-				ctx.Abort()
+				log.Warn(ErrorTokenIsExpired, sl.Err(err))
+				ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": ErrorTokenIsExpired})
+				return
+			} else if errors.Is(err, token.ErrInvalidToken) {
+				log.Warn(ErrorInvalidToken, sl.Err(err))
+				if accessToken == "undefined" {
+					ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": ErrorUnauthorized})
+					return
+				}
+				ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": ErrorInvalidToken})
 				return
 			}
-			if errors.Is(err, token.ErrInvalidToken) {
-				log.Warn("token is invalid", sl.Err(err))
-				ctx.JSON(http.StatusUnauthorized, gin.H{"error": "token is invalid"})
-				ctx.Abort()
-				return
-			}
-			log.Error("failed to verify token", sl.Err(err))
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to verify token"})
-			ctx.Abort()
+			log.Error(ErrorFailedToVerify, sl.Err(err))
+			ctx.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": ErrorFailedToVerify})
 			return
 		}
 
-		ctx.Set(authorizationPayloadKey, payload)
+		ctx.Set(AuthorizationPayloadKey, payload)
 		ctx.Next()
 	}
 }
