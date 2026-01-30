@@ -40,7 +40,7 @@ func TestGetUser(t *testing.T) {
 	require.NotEmpty(t, args)
 	require.NotZero(t, user.Username)
 
-	u, err := store.GetUser(ctx, args.Username)
+	u, err := store.GetUserPrivate(ctx, args.Username)
 	require.NoError(t, err)
 	require.NotEmpty(t, u)
 	require.NotZero(t, u.Username)
@@ -76,11 +76,15 @@ func TestUpdatePassword(t *testing.T) {
 	require.NotEmpty(t, updatedUser)
 	require.NotZero(t, updatedUser.Username)
 
-	require.Equal(t, user.Username, updatedUser.Username)
-	require.NotEqual(t, user.HashedPassword, updatedUser.HashedPassword)
-	require.Equal(t, hash, updatedUser.HashedPassword)
+	password, err := store.GetUserPassword(ctx, updatedUser.Username)
+	require.NoError(t, err)
+	require.NotEmpty(t, user)
 
-	ok, err := argon2id.ComparePasswordAndHash(newPassword, updatedUser.HashedPassword)
+	require.Equal(t, user.Username, updatedUser.Username)
+	require.NotEqual(t, user.HashedPassword, password)
+	require.Equal(t, hash, password)
+
+	ok, err := argon2id.ComparePasswordAndHash(newPassword, password)
 	require.NoError(t, err)
 	require.True(t, ok)
 }
@@ -117,7 +121,6 @@ func TestUpdateFullName(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.NotEmpty(t, updatedUser)
-	require.Equal(t, user.HashedPassword, updatedUser.HashedPassword)
 	require.NotEqual(t, user.FullName, updatedUser.FullName)
 	require.Equal(t, user.Email, updatedUser.Email)
 	require.Equal(t, "New Full Name", updatedUser.FullName)
@@ -142,9 +145,18 @@ func createRandomUser(password string) (user User, args CreateUserParams, err er
 		Email:          faker.Email(),
 	}
 
-	user, err = store.CreateUser(ctx, args)
+	createdUser, err := store.CreateUser(ctx, args)
 	if err != nil {
 		return
+	}
+
+	user = User{
+		Username:          createdUser.Username,
+		HashedPassword:    hash,
+		FullName:          createdUser.FullName,
+		Email:             createdUser.Email,
+		CreatedAt:         createdUser.CreatedAt,
+		PasswordChangedAt: createdUser.PasswordChangedAt,
 	}
 
 	return
