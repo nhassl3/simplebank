@@ -1,7 +1,7 @@
 # config/local
 log_type: 4
 http:
-  host: ""
+  host: "0.0.0.0"
   port: 8080
 tgp:
   access_token_duration: "15m"
