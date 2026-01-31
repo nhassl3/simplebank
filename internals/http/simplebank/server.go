@@ -314,8 +314,6 @@ func (s *Server) CreateUser(ctx *gin.Context) {
 		return
 	}
 
-	checkUser(ctx, in.Username)
-
 	user, err := s.simplebank.CreateUser(ctx, in)
 	if err != nil {
 		if errors.Is(err, sl.ErrorUserAlreadyExists) {
