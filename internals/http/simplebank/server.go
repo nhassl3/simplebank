@@ -22,7 +22,7 @@ import (
 type Simplebank interface {
 	CreateAccount(ctx context.Context, in session.CreateAccountRequest) (*db.Account, error)
 	GetAccount(ctx context.Context, id int64) (*db.Account, error)
-	ListAccounts(ctx context.Context, in session.ListAccountsRequest) (*[]db.Account, error)
+	ListAccounts(ctx context.Context, in session.ListAccountsRequest, emitter string) (*[]db.Account, error)
 	UpdateAccountBalance(ctx context.Context, in session.UpdateAccountRequest) (*db.Account, error)
 	AddAccountBalance(ctx context.Context, in session.AddAccountBalanceRequest) (*db.Account, error)
 	DeleteAccount(ctx context.Context, id int64) error
@@ -176,9 +176,7 @@ func (s *Server) ListAccounts(ctx *gin.Context) {
 		return
 	}
 
-	in.Owner = payload.Subject
-
-	accounts, err := s.simplebank.ListAccounts(ctx, in)
+	accounts, err := s.simplebank.ListAccounts(ctx, in, payload.Subject)
 	if err != nil {
 		if errors.Is(err, sl.ErrorNoAccounts) {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Accounts not found"})

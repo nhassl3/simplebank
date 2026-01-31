@@ -79,11 +79,11 @@ func (h *AccountHandler) GetAccount(ctx context.Context, id int64) (*db.Account,
 }
 
 // ListAccounts lists accounts with given offset and limit
-func (h *AccountHandler) ListAccounts(ctx context.Context, in session.ListAccountsRequest) (*[]db.Account, error) {
+func (h *AccountHandler) ListAccounts(ctx context.Context, in session.ListAccountsRequest, emitter string) (*[]db.Account, error) {
 	log := h.log.With("op", opListAccounts)
 
 	account, err := h.store.ListAccounts(ctx, db.ListAccountsParams{
-		Owner:  in.Owner,
+		Owner:  emitter,
 		Offset: (in.Page - 1) * in.Limit,
 		Limit:  in.Limit,
 	})

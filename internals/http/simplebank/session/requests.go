@@ -11,9 +11,8 @@ type CallAccountRequest struct {
 }
 
 type ListAccountsRequest struct {
-	Owner string `json:"owner" binding:"required"`
-	Page  int32  `form:"page" binding:"min=1"`
-	Limit int32  `form:"limit" binding:"required,oneof=3 6 9 12"`
+	Page  int32 `form:"page" binding:"min=1"`
+	Limit int32 `form:"limit" binding:"required,oneof=3 6 9 12"`
 }
 
 type UpdateReqType interface {
