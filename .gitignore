@@ -3,5 +3,5 @@
 build/
 simplebanknk_ssh_key
 simplebanknk_ssh_key.pub
-.env
+*.env
 internals/db/sqlc/testdata/.env
