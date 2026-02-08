@@ -1,3 +1,5 @@
+.DEFAULT_GOAL := run
+
 BINARY_NAME=simplebank
 BUILD_DIR=build
 
@@ -38,25 +40,11 @@ sqlc:
 mock:
 	mockgen -package=mockdb -destination=./internals/db/mock/store.go github.com/nhassl3/simplebank/internals/db/sqlc Store
 
-drm:
-	@docker network disconnect bank-network postgres18
-	@docker rm simplebank
+docker-up:
+	@docker compose up
 
-drmi:
-	@docker rmi simplebank:latest
-
-docker-clean: drm drmi
-
-docker-build:
-	@docker build -t simplebank:latest .
-
-docker-run:
-	@docker network connect bank-network postgres18
-	@docker run --name simplebank \
-		  --network bank-network \
-		  -p 8080:8080 \
-		  -e FORCE_COLOR=1 \
-		  -t simplebank:latest
+docker-down:
+	@docker compose down
 
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
@@ -84,4 +72,4 @@ clean:
 test:
 	go test -v -cover ./...
 
-.PHONY: createdb dropdb opendb postgres migrate-up migrate-down sqlc build run clean test mock migrate-down-once migrate-up-once docker-build docker-run drm drmi docker-clean
+.PHONY: createdb dropdb opendb postgres migrate-up migrate-down sqlc build run clean test mock migrate-down-once migrate-up-once docker-up docker-down

@@ -1,0 +1,26 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    env_file:
+      - prod.env
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=${DATABASE_PASSWORD}
+      - POSTGRES_DB=simple_bank
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - prod.env
+    depends_on:
+      - postgres
+  frontend:
+    build:
+      context: ../simplebank-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - api
