@@ -1,5 +1,8 @@
 package session
 
+// Account interface
+
+// CreateAccountRequest request of creating account for the user
 type CreateAccountRequest struct {
 	Owner    string `json:"owner" binding:"required"`
 	Currency string `json:"currency" binding:"required,currency"`
@@ -36,7 +39,7 @@ type TransferRequest struct {
 	Currency      string `json:"currency" binding:"required,currency"`
 }
 
-// User session
+// User interface
 
 // CallUserRequest uses in GetUser and DeleteUser methods
 type CallUserRequest struct {

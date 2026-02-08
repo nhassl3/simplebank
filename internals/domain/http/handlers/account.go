@@ -19,6 +19,8 @@ const (
 	opUpdateAccountBalance = "domain.UpdateAccountBalance"
 	opAddAccountBalance    = "domain.AddAccountBalance"
 	opDeleteAccount        = "domain.DeleteAccount"
+
+	startBalance = 0
 )
 
 type AccountHandler struct {
@@ -39,7 +41,7 @@ func (h *AccountHandler) CreateAccount(ctx context.Context, in session.CreateAcc
 
 	account, err := h.store.CreateAccount(ctx, db.CreateAccountParams{
 		Owner:    in.Owner,
-		Balance:  0,
+		Balance:  startBalance,
 		Currency: in.Currency,
 	})
 
@@ -63,10 +65,14 @@ func (h *AccountHandler) CreateAccount(ctx context.Context, in session.CreateAcc
 }
 
 // GetAccount returns account by identifier (int64)
-func (h *AccountHandler) GetAccount(ctx context.Context, id int64) (*db.Account, error) {
+func (h *AccountHandler) GetAccount(ctx context.Context, id int64, emitter string) (*db.Account, error) {
 	log := h.log.With("op", opGetAccount)
 
-	account, err := h.store.GetAccount(ctx, id)
+	account, err := h.store.GetAccount(ctx, db.GetAccountParams{
+		ID:    id,
+		Owner: emitter,
+	})
+
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, sl.ErrorNoAccounts
@@ -100,12 +106,13 @@ func (h *AccountHandler) ListAccounts(ctx context.Context, in session.ListAccoun
 }
 
 // UpdateAccountBalance updates balance of account by given balance
-func (h *AccountHandler) UpdateAccountBalance(ctx context.Context, in session.UpdateAccountRequest) (*db.Account, error) {
+func (h *AccountHandler) UpdateAccountBalance(ctx context.Context, in session.UpdateAccountRequest, emitter string) (*db.Account, error) {
 	log := h.log.With("op", opUpdateAccountBalance)
 
-	account, err := h.store.UpdateAccountBalance(ctx, db.UpdateAccountBalanceParams{
+	updatedAccount, err := h.store.UpdateAccountBalance(ctx, db.UpdateAccountBalanceParams{
 		ID:      in.ID,
 		Balance: in.Balance,
+		Owner:   emitter,
 	})
 
 	if err != nil {
@@ -116,16 +123,17 @@ func (h *AccountHandler) UpdateAccountBalance(ctx context.Context, in session.Up
 		return nil, sl.ErrUpLevel(opUpdateAccountBalance, err)
 	}
 
-	return &account, nil
+	return &updatedAccount, nil
 }
 
 // AddAccountBalance adds balance for account on was given amount
-func (h *AccountHandler) AddAccountBalance(ctx context.Context, in session.AddAccountBalanceRequest) (*db.Account, error) {
+func (h *AccountHandler) AddAccountBalance(ctx context.Context, in session.AddAccountBalanceRequest, emitter string) (*db.Account, error) {
 	log := h.log.With("op", opAddAccountBalance)
 
 	account, err := h.store.AddAccountBalance(ctx, db.AddAccountBalanceParams{
 		ID:     in.ID,
 		Amount: in.Amount,
+		Owner:  emitter,
 	})
 
 	if err != nil {
@@ -140,10 +148,14 @@ func (h *AccountHandler) AddAccountBalance(ctx context.Context, in session.AddAc
 }
 
 // DeleteAccount deletes account from the system
-func (h *AccountHandler) DeleteAccount(ctx context.Context, id int64) error {
+func (h *AccountHandler) DeleteAccount(ctx context.Context, id int64, emitter string) error {
 	log := h.log.With("op", opDeleteAccount)
 
-	if err := h.store.DeleteAccount(ctx, id); err != nil {
+	id, err := h.store.DeleteAccount(ctx, db.DeleteAccountParams{
+		ID:    id,
+		Owner: emitter,
+	})
+	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return sl.ErrorNoAccounts
 		}

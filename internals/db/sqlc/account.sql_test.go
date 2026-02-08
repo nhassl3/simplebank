@@ -46,17 +46,21 @@ func TestDeleteAccount(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
 
-	err = store.DeleteAccount(ctx, account.ID)
+	ok, err := store.DeleteAccount(ctx, DeleteAccountParams{
+		ID:    account.ID,
+		Owner: account.Owner,
+	})
 	require.NoError(t, err)
+	require.Equal(t, account.ID, ok)
 
-	accountRes, err := store.GetAccount(ctx, account.ID)
+	accountRes, err := store.GetAccountByID(ctx, ok)
 	require.Error(t, err)
 	require.ErrorContains(t, sql.ErrNoRows, err.Error())
 	require.Empty(t, accountRes)
 }
 
 func TestGetRandomAccount(t *testing.T) {
-	account, err := store.GetAccount(ctx, int64(gofakeit.IntRange(1, 5)))
+	account, err := store.GetAccountByID(ctx, int64(gofakeit.IntRange(1, 5)))
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
 }
@@ -72,7 +76,23 @@ func TestGetAccount(t *testing.T) {
 	require.NotZero(t, account.ID)
 	require.NotZero(t, account.CreatedAt)
 
-	testAccount, err := store.GetAccount(ctx, account.ID)
+	testAccount, err := store.GetAccountByID(ctx, account.ID)
+
+	require.NoError(t, err)
+	require.NotEmpty(t, account)
+	require.Equal(t, args.Owner, testAccount.Owner)
+	require.Equal(t, args.Balance, testAccount.Balance)
+	require.Equal(t, args.Currency, testAccount.Currency)
+	require.NotZero(t, testAccount.ID)
+	require.NotZero(t, testAccount.CreatedAt)
+
+	// Most needed test
+	require.WithinDuration(t, account.CreatedAt.Time, testAccount.CreatedAt.Time, time.Second)
+
+	testAccount, err = store.GetAccount(ctx, GetAccountParams{
+		ID:    account.ID,
+		Owner: account.Owner,
+	})
 
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
@@ -87,7 +107,7 @@ func TestGetAccount(t *testing.T) {
 }
 
 func TestListAccounts(t *testing.T) {
-	account, err := store.GetAccount(ctx, int64(gofakeit.IntRange(1, 5)))
+	account, err := store.GetAccountByID(ctx, int64(gofakeit.IntRange(1, 5)))
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
 
@@ -150,7 +170,7 @@ func TestListAccounts(t *testing.T) {
 }
 
 func TestUpdateAccount(t *testing.T) {
-	account, err := store.GetAccount(ctx, int64(faker.IntRange(1, 5)))
+	account, err := store.GetAccountByID(ctx, int64(faker.IntRange(1, 5)))
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
 	require.NotZero(t, account.ID)
@@ -159,6 +179,7 @@ func TestUpdateAccount(t *testing.T) {
 	newArgs := UpdateAccountBalanceParams{
 		account.ID,
 		int64(faker.IntRange(1, 1000)),
+		account.Owner,
 	}
 
 	if newArgs.Balance == account.Balance {
@@ -182,7 +203,7 @@ func TestUpdateAccount(t *testing.T) {
 }
 
 func TestAddAccountBalance(t *testing.T) {
-	account, err := store.GetAccount(ctx, int64(faker.IntRange(1, 5)))
+	account, err := store.GetAccountByID(ctx, int64(faker.IntRange(1, 5)))
 	require.NoError(t, err)
 	require.NotEmpty(t, account)
 	require.NotZero(t, account.ID)
@@ -191,11 +212,13 @@ func TestAddAccountBalance(t *testing.T) {
 	argsPlus := AddAccountBalanceParams{
 		ID:     account.ID,
 		Amount: 100,
+		Owner:  account.Owner,
 	}
 
 	argsMinus := AddAccountBalanceParams{
 		ID:     account.ID,
 		Amount: -100,
+		Owner:  account.Owner,
 	}
 
 	for _, tc := range []struct {

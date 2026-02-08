@@ -35,7 +35,7 @@ func (h *TransferHandler) CreateTransfer(ctx context.Context, in session.Transfe
 		ctx,
 		in.FromAccountID, in.ToAccountID, in.Amount,
 		in.Currency, emitter); ok == false && err != nil {
-		return nil, err
+		return nil, sl.ErrUpLevel(opCreateTransfer, err)
 	}
 
 	transfer, err := h.store.TransferTx(ctx, db.TransferTxOptions{
@@ -58,7 +58,7 @@ func (h *TransferHandler) accountCurrenciesChecker(
 ) (bool, error) {
 	log := h.log.With("op", opAccountCurrencyChecker)
 
-	fromAccount, errF := h.store.GetAccount(ctx, fromAccountID)
+	fromAccount, errF := h.store.GetAccountByID(ctx, fromAccountID)
 	if errF == nil {
 		if fromAccount.Balance < amount {
 			return false, sl.ErrorNotEnoughMoney
@@ -67,7 +67,7 @@ func (h *TransferHandler) accountCurrenciesChecker(
 		}
 	}
 
-	toAccount, errT := h.store.GetAccount(ctx, toAccountID)
+	toAccount, errT := h.store.GetAccountByID(ctx, toAccountID)
 
 	if errF != nil || errT != nil {
 		if errors.Is(errF, sql.ErrNoRows) && errors.Is(errT, sql.ErrNoRows) {
