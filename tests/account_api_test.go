@@ -158,7 +158,10 @@ func TestGetAccount(t *testing.T) {
 			},
 			BuildStubs: func(store *mockdb.MockStore) {
 				s.Store.EXPECT().
-					GetAccount(gomock.Any(), gomock.Eq(account.ID)).
+					GetAccount(gomock.Any(), gomock.Eq(db.GetAccountParams{
+						ID:    account.ID,
+						Owner: account.Owner,
+					})).
 					Times(1).
 					Return(account, nil)
 			},
@@ -180,7 +183,10 @@ func TestGetAccount(t *testing.T) {
 			},
 			BuildStubs: func(store *mockdb.MockStore) {
 				s.Store.EXPECT().
-					GetAccount(gomock.Any(), gomock.Eq(account.ID)).
+					GetAccount(gomock.Any(), gomock.Eq(db.GetAccountParams{
+						ID:    account.ID,
+						Owner: account.Owner,
+					})).
 					Times(1).
 					Return(db.Account{}, sql.ErrNoRows)
 			},
@@ -196,7 +202,10 @@ func TestGetAccount(t *testing.T) {
 			},
 			BuildStubs: func(store *mockdb.MockStore) {
 				s.Store.EXPECT().
-					GetAccount(gomock.Any(), gomock.Eq(account.ID)).
+					GetAccount(gomock.Any(), gomock.Eq(db.GetAccountParams{
+						ID:    account.ID,
+						Owner: account.Owner,
+					})).
 					Times(0)
 			},
 			CheckResponse: func(t *testing.T, resp *httptest.ResponseRecorder) {
@@ -211,7 +220,10 @@ func TestGetAccount(t *testing.T) {
 			},
 			BuildStubs: func(store *mockdb.MockStore) {
 				s.Store.EXPECT().
-					GetAccount(gomock.Any(), gomock.Eq(account.ID)).
+					GetAccount(gomock.Any(), gomock.Eq(db.GetAccountParams{
+						ID:    account.ID,
+						Owner: account.Owner,
+					})).
 					Times(1).
 					Return(db.Account{}, sql.ErrConnDone)
 			},
