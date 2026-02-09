@@ -465,7 +465,12 @@ func CheckUser(ctx *gin.Context, username string) bool {
 		return false
 	}
 
-	if payload.Claims["level_right"] == "0" && payload.Subject != username {
+	level, ok := payload.Claims["level_right"]
+	// Если claim отсутствует или равен "0" — считаем пользователя обычным,
+	// и разрешаем действия только над собственным username.
+	isAdmin := ok && level != "0"
+
+	if !isAdmin && payload.Subject != username {
 		ctx.JSON(http.StatusForbidden, gin.H{"error": "Forbidden"})
 		return false
 	}

@@ -63,9 +63,11 @@ func (h *UserHandler) CreateUser(ctx context.Context, in session.CreateUserReque
 		return nil, sl.ErrUpLevel(opCreateUser, err)
 	}
 
-	// Create access token (15 minutes) without admin rights
+	// Create access token (15 minutes) without admin rights.
+	// Для новых пользователей явно выставляем level_right = "0",
+	// чтобы CheckUser трактовал их как обычных, а не админов.
 	accessToken, err := h.tokenMaker.CreateToken(user.Username, map[string]string{
-		"admin": "false",
+		"level_right": "0",
 	})
 	if err != nil {
 		log.Error("failed to create token", sl.Err(err))
