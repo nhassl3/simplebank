@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/nhassl3/simplebank/internals/lib/logger/sl"
 )
 
 const minSecretKeySize = 32
@@ -32,49 +33,42 @@ func NewJWTMaker(secretKey string, duration time.Duration) (*JWTMaker, error) {
 }
 
 // CreateToken creates a new token for a specific username and duration
-func (maker JWTMaker) CreateToken(username string, isAdmin bool) (string, error) {
-	payload, err := NewPayload(username, isAdmin, maker.duration)
-	if err != nil {
-		return "", err
-	}
-
-	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, payload)
-
-	return jwtToken.SignedString([]byte(maker.secretKey))
+func (maker JWTMaker) CreateToken(username string, claims map[string]string) (string, error) {
+	return createToken(username, maker.duration, func(payload *Payload) (string, error) {
+		return jwt.NewWithClaims(jwt.SigningMethodHS256, payload).SignedString([]byte(maker.secretKey))
+	}, claims)
 }
 
 // VerifyToken checks if the token is valid or not
 func (maker JWTMaker) VerifyToken(token string) (*Payload, error) {
 	keyFunc := func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("%w: %s",
+			return nil, sl.ErrUpLevel(opVerifyToken, fmt.Errorf("%w: %s",
 				ErrInvalidToken,
 				fmt.Sprintf("unexpected signing method: %v", token.Header["alg"]),
-			)
+			))
 		}
 		return []byte(maker.secretKey), nil
 	}
 
 	jwtToken, err := jwt.ParseWithClaims(token, &Payload{}, keyFunc)
-
 	if err != nil {
 		if errors.Is(err, jwt.ErrTokenExpired) {
-			return nil, ErrExpiredToken
+			return nil, sl.ErrUpLevel(opVerifyToken, ErrExpiredToken)
 		}
-		return nil, ErrInvalidToken
+		return nil, sl.ErrUpLevel(opVerifyToken, ErrInvalidToken)
 	}
 
-	// Проверяем, что токен валиден
 	if !jwtToken.Valid {
-		return nil, ErrInvalidToken
+		return nil, sl.ErrUpLevel(opVerifyToken, ErrInvalidToken)
 	}
 
 	payload, ok := jwtToken.Claims.(*Payload)
 	if !ok || payload == nil {
-		return nil, fmt.Errorf("%w: %s",
+		return nil, sl.ErrUpLevel(opVerifyToken, fmt.Errorf("%w: %s",
 			ErrInvalidToken,
 			"token claims is not satisfied token does not satisfy the custom payload",
-		)
+		))
 	}
 
 	return payload, nil

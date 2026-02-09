@@ -1,3 +1,5 @@
+.DEFAULT_GOAL := run
+
 BINARY_NAME=simplebank
 BUILD_DIR=build
 
@@ -7,7 +9,6 @@ ifneq (,$(wildcard ./.env))
 endif
 
 DATABASE_PASSWORD ?= $$DATABASE_PASSWORD
-TEST_CONNECTION ?=  $$TEST_CONNECTION
 
 createdb:
 	docker exec -it postgres18 createdb --username=root --owner=root simple_bank
@@ -39,9 +40,14 @@ sqlc:
 mock:
 	mockgen -package=mockdb -destination=./internals/db/mock/store.go github.com/nhassl3/simplebank/internals/db/sqlc Store
 
+docker-up:
+	@docker compose up
 
-export GOOS=$(go env GOOS)
-export GOARCH=$(go env GOARCH)
+docker-down:
+	@docker compose down
+
+GOOS ?= $(shell go env GOOS)
+GOARCH ?= $(shell go env GOARCH)
 CGO_ENABLED ?= 0
 LDFLAGS ?= -s -w
 BUILD_TAGS ?= ""
@@ -58,12 +64,12 @@ build:
 
 run: build
 	@echo "\n"
-	@DATABASE_PASSWORD=$(DATABASE_PASSWORD) ./$(BUILD_DIR)/$(BINARY_NAME)-$(GOOS)-$(GOARCH) -config=./config/local.yml
+	@./$(BUILD_DIR)/$(BINARY_NAME)-$(GOOS)-$(GOARCH) --config=./config/local.yaml --env=.env
 
 clean:
 	rm -rf ./$(BUILD_DIR)/
 
 test:
-	@TEST_CONNECTION=$(TEST_CONNECTION) go test -v -cover ./...
+	go test -v -cover ./...
 
-.PHONY: createdb dropdb opendb postgres migrate-up migrate-down sqlc build run clean test mock migrate-down-once migrate-up-once
+.PHONY: createdb dropdb opendb postgres migrate-up migrate-down sqlc build run clean test mock migrate-down-once migrate-up-once docker-up docker-down

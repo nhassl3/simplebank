@@ -28,14 +28,14 @@ func NewTransferHandler(log *slog.Logger, store db.Store) *TransferHandler {
 	}
 }
 
-func (h *TransferHandler) CreateTransfer(ctx context.Context, in session.TransferRequest) (*db.TransferTxResponse, error) {
+func (h *TransferHandler) CreateTransfer(ctx context.Context, in session.TransferRequest, emitter string) (*db.TransferTxResponse, error) {
 	log := h.log.With("op", opCreateTransfer)
 
 	if ok, err := h.accountCurrenciesChecker(
 		ctx,
 		in.FromAccountID, in.ToAccountID, in.Amount,
-		in.Currency); ok == false && err != nil {
-		return nil, err
+		in.Currency, emitter); ok == false && err != nil {
+		return nil, sl.ErrUpLevel(opCreateTransfer, err)
 	}
 
 	transfer, err := h.store.TransferTx(ctx, db.TransferTxOptions{
@@ -54,16 +54,20 @@ func (h *TransferHandler) CreateTransfer(ctx context.Context, in session.Transfe
 func (h *TransferHandler) accountCurrenciesChecker(
 	ctx context.Context,
 	fromAccountID, toAccountID, amount int64,
-	currency string,
+	currency, emitter string,
 ) (bool, error) {
 	log := h.log.With("op", opAccountCurrencyChecker)
 
-	fromAccount, errF := h.store.GetAccount(ctx, fromAccountID)
-	if errF == nil && fromAccount.Balance < amount {
-		return false, sl.ErrorNotEnoughMoney
+	fromAccount, errF := h.store.GetAccountByID(ctx, fromAccountID)
+	if errF == nil {
+		if fromAccount.Balance < amount {
+			return false, sl.ErrorNotEnoughMoney
+		} else if fromAccount.Owner != emitter {
+			return false, sl.ErrorForbidden
+		}
 	}
 
-	toAccount, errT := h.store.GetAccount(ctx, toAccountID)
+	toAccount, errT := h.store.GetAccountByID(ctx, toAccountID)
 
 	if errF != nil || errT != nil {
 		if errors.Is(errF, sql.ErrNoRows) && errors.Is(errT, sql.ErrNoRows) {

@@ -93,7 +93,7 @@ if err == token.ErrInvalidToken {
 
 #### b) Добавить JWT секрет в конфигурацию
 ```yaml
-# config/local.yml
+# config/local.yaml
 jwt:
   secret_key: "your-32-character-secret-key-here!"
   access_token_duration: "15m"

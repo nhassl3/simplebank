@@ -1,9 +1,0 @@
-# config/local
-env: 1
-connection_db: "postgres://root:${DB_PASSWORD}@localhost:5432/simple_bank"
-http:
-  host: "localhost"
-  port: 8080
-jwt:
-  secret_key: "Ys9jPugxhbIeJluEEiHcEsCUNhiWuI+YqsT1Wra3z4g="
-  access_token_duration: "15m"

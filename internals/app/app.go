@@ -28,7 +28,7 @@ func MustNewApp(log *slog.Logger, secretKey, connectionDBString, host string, po
 		panic(err)
 	}
 
-	jwtMaker, err := token.NewJWTMaker(secretKey, duration)
+	PASETOMaker, err := token.NewPASETOMaker([]byte(secretKey), duration)
 	if err != nil {
 		panic(err)
 	}
@@ -38,8 +38,8 @@ func MustNewApp(log *slog.Logger, secretKey, connectionDBString, host string, po
 	return &App{
 		pool:    pool,
 		store:   store,
-		handler: domain.NewHandler(log, store, jwtMaker),
-		Server:  simplebank.MustNewServer(jwtMaker, log),
+		handler: domain.NewHandler(log, store, PASETOMaker),
+		Server:  simplebank.MustNewServer(PASETOMaker, log),
 		Address: fmt.Sprintf("%s:%d", host, port),
 	}
 }
