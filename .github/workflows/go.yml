@@ -45,8 +45,9 @@ jobs:
         run: |
             touch .env
             echo DATABASE_PASSWORD=${{ secrets.DATABASE_PASSWORD }} >> .env
-            echo TEST_CONNECTION=${{ secrets.TEST_CONNECTION }} >> .env
-            cat .env
+            echo CONNECTION_STRING=${{ secrets.CONNECTION_STRING }} >> .env
+            echo TOKEN_SECRET_KEY_GENERATION=${{ secrets.TOKEN_SECRET_KEY_GENERATION }} >> .env
+            cp -f .env ./internals/db/sqlc/testdata/.env
 
       - name: Install migrate package CLI v4.19.1
         run: |

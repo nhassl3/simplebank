@@ -63,8 +63,12 @@ func (h *UserHandler) CreateUser(ctx context.Context, in session.CreateUserReque
 		return nil, sl.ErrUpLevel(opCreateUser, err)
 	}
 
-	// Create access token (15 minutes)
-	accessToken, err := h.tokenMaker.CreateToken(user.Username, false)
+	// Create access token (15 minutes) without admin rights.
+	// Для новых пользователей явно выставляем level_right = "0",
+	// чтобы CheckUser трактовал их как обычных, а не админов.
+	accessToken, err := h.tokenMaker.CreateToken(user.Username, map[string]string{
+		"level_right": "0",
+	})
 	if err != nil {
 		log.Error("failed to create token", sl.Err(err))
 		return nil, sl.ErrUpLevel(opCreateUser, err)
@@ -108,7 +112,9 @@ func (h *UserHandler) LoginUser(ctx context.Context, in session.LoginRequest) (*
 	}
 
 	// Create access token (15 minutes)
-	accessToken, err := h.tokenMaker.CreateToken(in.Username, user.LevelRight.Valid)
+	accessToken, err := h.tokenMaker.CreateToken(in.Username, map[string]string{
+		"level_right": user.LevelRight.Int.String(),
+	})
 	if err != nil {
 		log.Error("failed to create token", sl.Err(err))
 		return nil, sl.ErrUpLevel(opLoginUser, err)
@@ -126,6 +132,7 @@ func (h *UserHandler) LoginUser(ctx context.Context, in session.LoginRequest) (*
 	}, nil
 }
 
+// GetUser returns a response containing basic information about the user
 func (h *UserHandler) GetUser(ctx context.Context, username string) (*db.GetUserRow, error) {
 	log := h.log.With("op", opGetUser)
 
@@ -141,6 +148,7 @@ func (h *UserHandler) GetUser(ctx context.Context, username string) (*db.GetUser
 	return &user, nil
 }
 
+// UpdateUserPassword updates the user password
 func (h *UserHandler) UpdateUserPassword(ctx context.Context, in session.UpdateUserPasswordRequest) (*db.UpdatePasswordRow, error) {
 	log := h.log.With("op", opUpdateUserPassword)
 
@@ -184,6 +192,7 @@ func (h *UserHandler) UpdateUserPassword(ctx context.Context, in session.UpdateU
 	return &user, nil
 }
 
+// UpdateUserFullName updates the user's full name if necessary
 func (h *UserHandler) UpdateUserFullName(ctx context.Context, in session.UpdateUserFullNameRequest) (*db.UpdateNameRow, error) {
 	log := h.log.With("op", opUpdateUserFullName)
 
@@ -203,6 +212,7 @@ func (h *UserHandler) UpdateUserFullName(ctx context.Context, in session.UpdateU
 	return &user, nil
 }
 
+// DeleteUser removes the user from the system
 func (h *UserHandler) DeleteUser(ctx context.Context, username string) error {
 	log := h.log.With("op", opDeleteUser)
 
